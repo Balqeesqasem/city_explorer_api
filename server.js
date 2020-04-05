@@ -17,11 +17,22 @@ server.get('/' , (req,res) =>{
 });
 
 server.get('/location' ,(req,res)=>{
+ const city = req.query.city;
   const geoData = require('./data/geo.json');
   //console.log(geoData);
-  const city = req.query.city;
   const locationData = new Location(city,geoData);
-  res.send(locationData);
+  res.status(200).send(locationData);
+});
+
+server.get('/weather' ,(req,res)=>{
+  const weatherData = require('./data/weather.json');
+  let eachDayWeather = [];
+  for (let i=0 ; i<weatherData.data.length ; i++){
+    const weatherDataA = new Weather(weatherData.data[i]);
+    eachDayWeather.push(weatherDataA);
+  }
+
+  res.status(200).send(eachDayWeather);
 });
 
 server.use('*' ,(req,res) =>{
@@ -34,7 +45,15 @@ server.use((error ,req,res) =>{
 
 function Location (city,geoData){
   this.searchQuery = city ;
+  this.formatted_query = geoData[0].display_name;
   this.latitude = geoData[0].lat;
   this.longitude = geoData[0].lon;
 }
 
+
+
+function Weather (weatherData){
+  //console.log(weatherData);
+  this.time = weatherData.datetime;
+  this.description = weatherData.weather.description;
+}
