@@ -20,8 +20,6 @@ server.use(cors());
 
 // Route Definitions for location--------------------------------------------------------------------
 server.get('/location' ,locationHandler);
-// Route Definitions for weather--------------------------------------------------------------------
-server.get('/weather' ,weather);
 
 //request and send data
 function locationHandler (req ,res){
@@ -43,6 +41,8 @@ function getLocation (city) {
     });
 
 }
+// Route Definitions for weather--------------------------------------------------------------------
+server.get('/weather' ,weather);
 
 
 //request and send data
@@ -60,7 +60,7 @@ function getWeather(city) {
   let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`;
   return superagent.get(url)
     .then ( weatherData => {
-      console.log(weatherData.body);
+      //console.log(weatherData.body);
       weatherData.body.data.forEach(val =>{
         var weatherData = new Weather(val);
         eachDayWeather.push(weatherData);
@@ -70,6 +70,33 @@ function getWeather(city) {
       return eachDayWeather;
     });
 }
+
+// Route Definitions for trails--------------------------------------------------------------------
+server.get('/trails' ,trail);
+
+let trailArray= [];
+
+function trail(req,res){
+  const city = req.query.search_query;
+  trailsGet(city)
+    .then(trailData => res.status(200).json(trailData));
+}
+function trailsGet(){
+  let key = process.env.TRAILS_KEY;
+  let url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&maxDistance=10&key=${key}`;
+  return superagent.get(url)
+    .then(trailData => {
+      trailData.body.trails.forEach( val =>{
+        var trailData = new Trails(val) ;
+        trailArray.push(trailData);
+      });
+    });
+}
+
+
+
+
+
 // my constructer-------------------------------------------------------------------------------------
 function LocationConst (city,geoData){
   this.search_query = city ;
@@ -86,7 +113,18 @@ function Weather (weatherData){
   this.forecast = weatherData.weather.description;
 }
 
-
+function Trails (trailData){
+  this.name=trailData.name;
+  this.location=trailData.location;
+  this.length=trailData.length;
+  this.stars=trailData.stars;
+  this.star_votes=trailData.starVotes;
+  this.summary=trailData.summary;
+  this.trail_url=trailData.url;
+  this.conditions=trailData.conditionDetails;
+  this.condition_date=trailData.conditionDate;
+  //this.condition_time=trailData.
+}
 
 // error and 404 handling-------------------------------------------------------------------------------
 server.use('*' ,(req,res) =>{
