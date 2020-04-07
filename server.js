@@ -4,6 +4,10 @@
 const express = require('express');
 const cors = require('cors');
 const superagent =require ('superagent');
+//const pg = require('pg'); //prepere connection between postgress and server (library)
+
+//creat the connection our server now client ! connect server to database
+//const client = new pg.Client(process.env.DATABASE_URL);
 
 // Load Environment Variables from the .env file--------------------------------------------------
 require('dotenv').config();
@@ -74,22 +78,26 @@ function getWeather(city) {
 // Route Definitions for trails--------------------------------------------------------------------
 server.get('/trails' ,trail);
 
-let trailArray= [];
+//let trailArray= [];
 
 function trail(req,res){
   const city = req.query.search_query;
-  trailsGet(city)
+  const lat = req.query.latitude;
+  const lon =req.query.longitude;
+  trailsGet(city,lat,lon)
     .then(trailData => res.status(200).json(trailData));
 }
-function trailsGet(){
+function trailsGet(city,lat ,lon){
   let key = process.env.TRAILS_KEY;
   let url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&maxDistance=10&key=${key}`;
   return superagent.get(url)
     .then(trailData => {
-      trailData.body.trails.forEach( val =>{
-        var trailData = new Trails(val) ;
-        trailArray.push(trailData);
+      console.log(trailData.body);
+      trailData.body.trails.map( val =>{
+        return new Trails(val) ;
+        // trailArray.push(trailData);
       });
+      // return trailArray;
     });
 }
 
@@ -122,26 +130,32 @@ function Trails (trailData){
   this.summary=trailData.summary;
   this.trail_url=trailData.url;
   this.conditions=trailData.conditionDetails;
-  this.condition_date=trailData.conditionDate;
-  //this.condition_time=trailData.
+  this.condition_date=trailData.conditionDate.slice(0,-9);
+  this.condition_time=trailData.conditionDate.slice(-9);
 }
 
 // error and 404 handling-------------------------------------------------------------------------------
-server.use('*' ,(req,res) =>{
+
+server.use(error);
+server.get('*', notFoundError);
+
+function notFoundError(req,res){
   res.status(404).send('404 ERROR');
 }
-);
-server.use((error ,req,res) =>{
+
+
+function error (req,res) {
   res.status(500).send(error);
-});
+}
 
 
 //Make sure the server is listening for requests-----------------------------------------------------------
-server.listen(PORT , () => {
-  console.log(`lestining to PORT  ${PORT}`);
-});
+
+// client.connect()//it's function (promese function) check connection of my database if it's connected go if not dont
+//   .then(() =>{
+    server.listen(PORT , () => {
+      console.log(`lestining to PORT  ${PORT}`);
+    });
+  // });
 
 
-// server.get('/' , (req,res) =>{
-//   res.status(200).send('Hello');
-// });
