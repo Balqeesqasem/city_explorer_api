@@ -1,16 +1,17 @@
 'use strict';
 
 // Application Dependencies-----------------------------------------------------------------------
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const superagent =require ('superagent');
-//const pg = require('pg'); //prepere connection between postgress and server (library)
+const pg = require('pg'); //prepere connection between postgress and server (library)
 
 //creat the connection our server now client ! connect server to database
-//const client = new pg.Client(process.env.DATABASE_URL);
+const client = new pg.Client(process.env.DATABASE_URL);
 
 // Load Environment Variables from the .env file--------------------------------------------------
-require('dotenv').config();
+
 
 
 
@@ -56,7 +57,7 @@ function weather (req,res) {
     .then (weatherData => res.status(200).json(weatherData));
 }
 
-let eachDayWeather = [];
+// let eachDayWeather = [];
 // geting data
 function getWeather(city) {
   //console.log(city);
@@ -65,14 +66,15 @@ function getWeather(city) {
   return superagent.get(url)
     .then ( weatherData => {
       //console.log(weatherData.body);
-      weatherData.body.data.forEach(val =>{
-        var weatherData = new Weather(val);
-        eachDayWeather.push(weatherData);
+      return weatherData.body.data.map(val =>{
+        return new Weather(val);
+        // eachDayWeather.push(weatherData);
       });
       //console.log('weathr array',weatherData);
       //console.log('the emty array after',eachDayWeather);
-      return eachDayWeather;
+      // return eachDayWeather;
     });
+  // .catch (error => console.log(error));
 }
 
 // Route Definitions for trails--------------------------------------------------------------------
@@ -89,11 +91,11 @@ function trail(req,res){
 }
 function trailsGet(city,lat ,lon){
   let key = process.env.TRAILS_KEY;
-  let url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&maxDistance=10&key=${key}`;
+  let url = `https://www.hikingproject.com/data/get-trails?lat=${lat}&lon=${lon}&maxDistance=200&key=${key}`;
   return superagent.get(url)
     .then(trailData => {
       console.log(trailData.body);
-      trailData.body.trails.map( val =>{
+      return trailData.body.trails.map( val =>{
         return new Trails(val) ;
         // trailArray.push(trailData);
       });
@@ -101,8 +103,50 @@ function trailsGet(city,lat ,lon){
     });
 }
 
+// Route Definitions for yelp--------------------------------------------------------------------
+server.get('/yelp' ,yelp);
 
+function yelp (req,res){
+  const city = req.query.search_query;
+  yelpGet(city)
+    .then(yelpData => res.status(200).json(yelpData));
+}
 
+function yelpGet(city)
+{
+  let key = process.env.YELP_API_KEY;
+  let url = `https://api.yelp.com/v3/businesses/search?location=${city}`;
+  return superagent.get(url)
+    .set('Authorization',`Bearer ${key}`)
+    .then(yelpData => {
+      console.log(yelpData.body.businesses);
+      return yelpData.body.businesses.map(val =>{
+        return new Yelp(val);
+      });
+    });
+}
+
+// Route Definitions for yelp--------------------------------------------------------------------
+server.get('/movies' ,movie);
+
+function movie(req,res) {
+  const city = req.query.search_query;
+  movieGet(city)
+    .then(movieData => res.status(200).json(movieData));
+
+}
+
+function movieGet(city){
+  let key = process.env.MOVIE_API_KEY;
+  let url = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${city}`;
+  return superagent.get(url)
+    .then(movieData =>{
+      console.log(movieData.body);
+      return movieData.body.results.map(val => {
+        return new Movie(val);
+      });
+    });
+}
 
 
 // my constructer-------------------------------------------------------------------------------------
@@ -134,6 +178,25 @@ function Trails (trailData){
   this.condition_time=trailData.conditionDate.slice(-9);
 }
 
+
+function Yelp(yelpData){
+  this.name = yelpData.name;
+  this.image_url=yelpData.image_url;
+  this.price=yelpData.price;
+  this.rating=yelpData.rating;
+  this.url=yelpData.url;
+}
+
+function Movie(movieData){
+  this.title=movieData.title;
+  this.overview=movieData.overview;
+  this.average_votes=movieData.average_votes;
+  this.total_votes=movieData.total_votes;
+  this.image_url=`https://image.tmdb.org/t/p/w500${movieData.poster_path}`;
+  this.popularity=movieData.popularity;
+  this.released_on=movieData.released_on;
+}
+
 // error and 404 handling-------------------------------------------------------------------------------
 
 server.use(error);
@@ -151,11 +214,11 @@ function error (req,res) {
 
 //Make sure the server is listening for requests-----------------------------------------------------------
 
-// client.connect()//it's function (promese function) check connection of my database if it's connected go if not dont
-//   .then(() =>{
+client.connect()//it's function (promese function) check connection of my database if it's connected go if not dont
+  .then(() =>{
     server.listen(PORT , () => {
       console.log(`lestining to PORT  ${PORT}`);
     });
-  // });
+  });
 
 
