@@ -1,7 +1,9 @@
 'use strict';
 
-// Application Dependencies-----------------------------------------------------------------------
+
+// Load Environment Variables from the .env file--------------------------------------------------
 require('dotenv').config();
+// Application Dependencies-----------------------------------------------------------------------
 const express = require('express');
 const cors = require('cors');
 const superagent =require ('superagent');
@@ -10,7 +12,7 @@ const pg = require('pg'); //prepere connection between postgress and server (lib
 //creat the connection our server now client ! connect server to database
 const client = new pg.Client(process.env.DATABASE_URL);
 
-// Load Environment Variables from the .env file--------------------------------------------------
+
 
 
 
@@ -35,16 +37,26 @@ function locationHandler (req ,res){
 
 // geting data
 function getLocation (city) {
-  let key = process.env.LOCATION_KEY ;
-  const url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json` ;
-  //console.log(url);
-  // const geoData = require('./data/geo.json');
-  return superagent.get(url)
-    .then(geoData => {
-      const locationData = new LocationConst(city , geoData.body);
-      return locationData;
+  let SQL= 'SELECT * FROM place WHERE search_query=$1;';
+  let safeValues = [city];
+  return client.query(SQL,safeValues)
+    .then(results =>{
+      if(results.count){return results.rows[0];}
+      else {
+        let key = process.env.LOCATION_KEY ;
+        const url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json` ;
+        return superagent.get(url)
+          .then(geoData => {
+            const locationData = new LocationConst(city , geoData.body);
+            let SQL = 'INSERT INTO place (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4);';
+            let safeValues = [city, locationData.formatted_query , locationData.latitude , locationData.longitude];
+            return client.query(SQL,safeValues).then(results => {
+              results.rows[0];
+            });
+            // return locationData;
+          });
+      }
     });
-
 }
 // Route Definitions for weather--------------------------------------------------------------------
 server.get('/weather' ,weather);
@@ -214,7 +226,7 @@ function error (req,res) {
 
 //Make sure the server is listening for requests-----------------------------------------------------------
 
-client.connect()//it's function (promese function) check connection of my database if it's connected go if not dont
+client.connect()//it's function (promese function so we should use .then) check connection of my database if it's connected go if not dont
   .then(() =>{
     server.listen(PORT , () => {
       console.log(`lestining to PORT  ${PORT}`);

@@ -1,8 +1,10 @@
-DROP TABLE IF EXISTS place;
 
+DROP TABLE IF EXISTS place;
 CREATE TABLE place (
     id SERIAL PRIMARY KEY,
-     latitude INT ,
-     longitude INT
+    search_query VARCHAR(255),
+    formatted_query VARCHAR(255),
+    latitude float,
+    longitude float
 );
 
