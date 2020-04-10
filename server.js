@@ -1,7 +1,9 @@
 'use strict';
 
-// Application Dependencies-----------------------------------------------------------------------
+
+// Load Environment Variables from the .env file--------------------------------------------------
 require('dotenv').config();
+// Application Dependencies-----------------------------------------------------------------------
 const express = require('express');
 const cors = require('cors');
 const superagent =require ('superagent');
@@ -10,7 +12,7 @@ const pg = require('pg'); //prepere connection between postgress and server (lib
 //creat the connection our server now client ! connect server to database
 const client = new pg.Client(process.env.DATABASE_URL);
 
-// Load Environment Variables from the .env file--------------------------------------------------
+
 
 
 
@@ -35,16 +37,33 @@ function locationHandler (req ,res){
 
 // geting data
 function getLocation (city) {
-  let key = process.env.LOCATION_KEY ;
-  const url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json` ;
-  //console.log(url);
-  // const geoData = require('./data/geo.json');
-  return superagent.get(url)
-    .then(geoData => {
-      const locationData = new LocationConst(city , geoData.body);
-      return locationData;
-    });
+  let SQL= 'SELECT * FROM place WHERE search_query=$1;';
+  let safeValues = [city];
+  return client.query(SQL,safeValues)
+    .then(results =>{//tell js to wait
+      //console.log('hiiiiiiiiiiiiiiiiiiii',Object.keys(results).length);
+      if(results.rows.length){return results.rows[0];}
 
+      else {
+        let key = process.env.LOCATION_KEY ;
+        const url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json` ;
+        return superagent.get(url)
+          .then(geoData => {
+            //console.log(geoData.body);
+            const locationData = new LocationConst(city , geoData.body);
+            let queryFor =locationData.formatted_query;
+            let lat = locationData.latitude;
+            let lon = locationData.longitude;
+            //console.log('hiiiiiiiiiiiiii',locationData);
+            let SQL = 'INSERT INTO place (search_query,formatted_query,latitude,longitude) VALUES ($1, $2, $3, $4);';
+            let safeValues = [city,queryFor,lat,lon];
+            return client.query(SQL,safeValues).then(results => {
+              console.log('hiiiiiiiiiiiiiiiiiiii',results);
+              return locationData;
+            });
+          });
+      }
+    });
 }
 // Route Definitions for weather--------------------------------------------------------------------
 server.get('/weather' ,weather);
@@ -57,7 +76,7 @@ function weather (req,res) {
     .then (weatherData => res.status(200).json(weatherData));
 }
 
-// let eachDayWeather = [];
+
 // geting data
 function getWeather(city) {
   //console.log(city);
@@ -68,13 +87,10 @@ function getWeather(city) {
       //console.log(weatherData.body);
       return weatherData.body.data.map(val =>{
         return new Weather(val);
-        // eachDayWeather.push(weatherData);
       });
-      //console.log('weathr array',weatherData);
-      //console.log('the emty array after',eachDayWeather);
-      // return eachDayWeather;
+
     });
-  // .catch (error => console.log(error));
+
 }
 
 // Route Definitions for trails--------------------------------------------------------------------
@@ -97,9 +113,7 @@ function trailsGet(city,lat ,lon){
       console.log(trailData.body);
       return trailData.body.trails.map( val =>{
         return new Trails(val) ;
-        // trailArray.push(trailData);
       });
-      // return trailArray;
     });
 }
 
@@ -214,7 +228,7 @@ function error (req,res) {
 
 //Make sure the server is listening for requests-----------------------------------------------------------
 
-client.connect()//it's function (promese function) check connection of my database if it's connected go if not dont
+client.connect()//it's function (promese function so we should use .then) check connection of my database if it's connected go if not dont
   .then(() =>{
     server.listen(PORT , () => {
       console.log(`lestining to PORT  ${PORT}`);
