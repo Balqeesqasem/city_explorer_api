@@ -40,20 +40,27 @@ function getLocation (city) {
   let SQL= 'SELECT * FROM place WHERE search_query=$1;';
   let safeValues = [city];
   return client.query(SQL,safeValues)
-    .then(results =>{
-      if(results.count){return results.rows[0];}
+    .then(results =>{//tell js to wait
+      //console.log('hiiiiiiiiiiiiiiiiiiii',Object.keys(results).length);
+      if(results.rows.length){return results.rows[0];}
+
       else {
         let key = process.env.LOCATION_KEY ;
         const url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json` ;
         return superagent.get(url)
           .then(geoData => {
+            //console.log(geoData.body);
             const locationData = new LocationConst(city , geoData.body);
-            let SQL = 'INSERT INTO place (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4);';
-            let safeValues = [city, locationData.formatted_query , locationData.latitude , locationData.longitude];
+            let queryFor =locationData.formatted_query;
+            let lat = locationData.latitude;
+            let lon = locationData.longitude;
+            //console.log('hiiiiiiiiiiiiii',locationData);
+            let SQL = 'INSERT INTO place (search_query,formatted_query,latitude,longitude) VALUES ($1, $2, $3, $4);';
+            let safeValues = [city,queryFor,lat,lon];
             return client.query(SQL,safeValues).then(results => {
-              results.rows[0];
+              console.log('hiiiiiiiiiiiiiiiiiiii',results);
+              return locationData;
             });
-            // return locationData;
           });
       }
     });
@@ -69,7 +76,7 @@ function weather (req,res) {
     .then (weatherData => res.status(200).json(weatherData));
 }
 
-// let eachDayWeather = [];
+
 // geting data
 function getWeather(city) {
   //console.log(city);
@@ -80,13 +87,10 @@ function getWeather(city) {
       //console.log(weatherData.body);
       return weatherData.body.data.map(val =>{
         return new Weather(val);
-        // eachDayWeather.push(weatherData);
       });
-      //console.log('weathr array',weatherData);
-      //console.log('the emty array after',eachDayWeather);
-      // return eachDayWeather;
+
     });
-  // .catch (error => console.log(error));
+
 }
 
 // Route Definitions for trails--------------------------------------------------------------------
@@ -109,9 +113,7 @@ function trailsGet(city,lat ,lon){
       console.log(trailData.body);
       return trailData.body.trails.map( val =>{
         return new Trails(val) ;
-        // trailArray.push(trailData);
       });
-      // return trailArray;
     });
 }
 
